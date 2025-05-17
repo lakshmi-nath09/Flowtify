@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Algorithm Flowchart Maker</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background: #f5f7fa;
+  }
+  h1 {
+    text-align: center;
+    margin-bottom: 10px;
+  }
+  #inputArea {
+    width: 100%;
+    height: 150px;
+    font-family: monospace;
+    font-size: 14px;
+    padding: 10px;
+    box-sizing: border-box;
+  }
+  #generateBtn {
+    display: block;
+    margin: 15px auto;
+    padding: 10px 25px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  #flowchart {
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+  }
+  svg {
+    border: 1px solid #ccc;
+    background: white;
+  }
+  text {
+    font-size: 14px;
+    fill: #333;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+
+<h1>Algorithm Flowchart Maker</h1>
+
+<textarea id="inputArea" placeholder="Paste your algorithm or pseudocode here..."></textarea>
+<button id="generateBtn">Generate Flowchart</button>
+
+<div id="flowchart"></div>
+
+<script>
+// Define constants for SVG shape sizes
+const SHAPE_WIDTH = 160;
+const SHAPE_HEIGHT = 60;
+const VERTICAL_GAP = 40;
+
+const shapes = {
+  oval: function(x, y, label) {
+    return `
+      <ellipse cx="${x + SHAPE_WIDTH/2}" cy="${y + SHAPE_HEIGHT/2}" rx="${SHAPE_WIDTH/2}" ry="${SHAPE_HEIGHT/2}" fill="#9fdfbf" stroke="#2a8f54" stroke-width="2"/>
+      <text x="${x + SHAPE_WIDTH/2}" y="${y + SHAPE_HEIGHT/2 + 6}" text-anchor="middle">${label}</text>
+    `;
+  },
+  parallelogram: function(x, y, label) {
+    const points = `${x+20},${y} ${x+SHAPE_WIDTH},${y} ${x+SHAPE_WIDTH-20},${y+SHAPE_HEIGHT} ${x},${y+SHAPE_HEIGHT}`;
+    return `
+      <polygon points="${points}" fill="#f9d29d" stroke="#d4861b" stroke-width="2"/>
+      <text x="${x + SHAPE_WIDTH/2}" y="${y + SHAPE_HEIGHT/2 + 6}" text-anchor="middle">${label}</text>
+    `;
+  },
+  rectangle: function(x, y, label) {
+    return `
+      <rect x="${x}" y="${y}" width="${SHAPE_WIDTH}" height="${SHAPE_HEIGHT}" fill="#9db7f9" stroke="#3a54d1" stroke-width="2" rx="8" ry="8"/>
+      <text x="${x + SHAPE_WIDTH/2}" y="${y + SHAPE_HEIGHT/2 + 6}" text-anchor="middle">${label}</text>
+    `;
+  },
+  diamond: function(x, y, label) {
+    const cx = x + SHAPE_WIDTH / 2;
+    const cy = y + SHAPE_HEIGHT / 2;
+    const points = `
+      ${cx},${y} 
+      ${x + SHAPE_WIDTH},${cy} 
+      ${cx},${y + SHAPE_HEIGHT} 
+      ${x},${cy}
+    `;
+    return `
+      <polygon points="${points}" fill="#f49da9" stroke="#d13947" stroke-width="2"/>
+      <text x="${cx}" y="${cy + 6}" text-anchor="middle">${label}</text>
+    `;
+  },
+  arrow: function(x1, y1, x2, y2) {
+    // Draw a simple arrow line from (x1,y1) to (x2,y2)
+    const headLength = 10;
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const arrowX = x2 - headLength * Math.cos(angle - Math.PI / 6);
+    const arrowY = y2 - headLength * Math.sin(angle - Math.PI / 6);
+    const arrowX2 = x2 - headLength * Math.cos(angle + Math.PI / 6);
+    const arrowY2 = y2 - headLength * Math.sin(angle + Math.PI / 6);
+
+    return `
+      <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)"/>
+    `;
+  }
+};
+
+function parseLineToShape(line) {
+  const l = line.trim().toUpperCase();
+
+  // Match Start or End
+  if (l === 'START' || l === 'END') return 'oval';
+
+  // Match Input/Output keywords
+  if (l.startsWith('INPUT') || l.startsWith('OUTPUT') || l.startsWith('PRINT') || l.startsWith('READ')) return 'parallelogram';
+
+  // Match Decision keywords
+  if (l.startsWith('IF') || l.startsWith('ELSE IF') || l.startsWith('ELSE') || l.startsWith('WHILE') || l.startsWith('FOR') || l.startsWith('REPEAT') || l.startsWith('CASE')) return 'diamond';
+
+  // Otherwise treat as Process
+  return 'rectangle';
+}
+
+document.getElementById('generateBtn').addEventListener('click', () => {
+  const inputText = document.getElementById('inputArea').value.trim();
+  if (!inputText) {
+    alert('Please enter your algorithm or pseudocode!');
+    return;
+  }
+
+  const lines = inputText.split('\n').filter(l => l.trim() !== '');
+
+  // Setup SVG size dynamically
+  const width = SHAPE_WIDTH + 100;
+  const height = lines.length * (SHAPE_HEIGHT + VERTICAL_GAP) + 50;
+
+  let svgContent = `
+    <defs>
+      <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+        refX="10" refY="3.5" orient="auto" fill="#555">
+        <polygon points="0 0, 10 3.5, 0 7" />
+      </marker>
+    </defs>
+  `;
+
+  // Draw each shape stacked vertically
+  let shapesSVG = '';
+  let prevX = width / 2 - SHAPE_WIDTH/2;
+  let prevY = 20;
+  let centers = [];
+
+  lines.forEach((line, i) => {
+    const shapeType = parseLineToShape(line);
+    shapesSVG += shapes[shapeType](prevX, prevY, line.trim());
+    // Save center coordinates for arrow connection
+    centers.push({ x: prevX + SHAPE_WIDTH/2, y: prevY + SHAPE_HEIGHT });
+    prevY += SHAPE_HEIGHT + VERTICAL_GAP;
+  });
+
+  // Draw arrows between shapes
+  let arrowsSVG = '';
+  for(let i = 0; i < centers.length - 1; i++) {
+    const start = centers[i];
+    const end = centers[i+1];
+    arrowsSVG += `
+      <line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y - 10}" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)"/>
+    `;
+  }
+
+  svgContent += shapesSVG + arrowsSVG;
+
+  const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>`;
+
+  document.getElementById('flowchart').innerHTML = svg;
+});
+</script>
+
+</body>
+</html>
